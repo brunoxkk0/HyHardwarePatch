@@ -3,13 +3,17 @@ plugins {
     id 'org.jetbrains.gradle.plugin.idea-ext' version '1.3'
 }
 
+import org.gradle.internal.os.OperatingSystem
+
 ext {
-    def os = System.getProperty("os.name").toLowerCase()
-    if (os.contains("win")) {
+    def os = OperatingSystem.current()
+    if (os.isWindows()) {
         hytaleHome = "${System.getProperty("user.home")}/AppData/Roaming/Hytale"
-    } else if (os.contains("mac")) {
+    }
+    else if (os.isMacOsX()) {
         hytaleHome = "${System.getProperty("user.home")}/Library/Application Support/Hytale"
-    } else {
+    }
+    else if (os.isLinux()) {
         hytaleHome = "${System.getProperty("user.home")}/.var/app/com.hypixel.HytaleLauncher/data/Hytale"
     }
 }
