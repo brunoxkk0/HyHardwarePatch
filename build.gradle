@@ -78,23 +78,28 @@ tasks.named('processResources') {
     dependsOn 'updatePluginManifest'
 }
 
+def createServerRunArguments(String srcDir) {
+    def programParameters = '--allow-op --disable-sentry --assets="' + "${hytaleHome}/install/$patchline/package/game/latest/Assets.zip" + '"'
+    def modPaths = []
+    if (includes_pack.toBoolean()) {
+        modPaths << srcDir
+    }
+    if (load_user_mods.toBoolean()) {
+        modPaths << "${hytaleHome}/UserData/Mods"
+    }
+    if (!modPaths.isEmpty()) {
+        programParameters += ' --mods="' + modPaths.join(',') + '"'
+    }
+    return programParameters
+}
+
 // Creates a run configuration in IDEA that will run the Hytale server with
 // your plugin and the default assets.
 idea.project.settings.runConfigurations {
     'HytaleServer'(org.jetbrains.gradle.ext.Application) {
         mainClass = 'com.hypixel.hytale.Main'
         moduleName = project.idea.module.name + '.main'
-        programParameters = '--allow-op --disable-sentry --assets="' + "${hytaleHome}/install/$patchline/package/game/latest/Assets.zip" + '"'
-        def modPaths = []
-        if (includes_pack.toBoolean()) {
-            modPaths << sourceSets.main.java.srcDirs.first().parentFile.absolutePath
-        }
-        if (load_user_mods.toBoolean()) {
-            modPaths << "${hytaleHome}/UserData/Mods"
-        }
-        if (!modPaths.isEmpty()) {
-            programParameters += ' --mods="' + modPaths.join(',') + '"'
-        }
+        programParameters = createServerRunArguments(sourceSets.main.java.srcDirs.first().parentFile.absolutePath)
         workingDirectory = serverRunDir.absolutePath
     }
 }
@@ -107,14 +112,7 @@ tasks.register('generateVSCodeLaunch') {
         if (!vscodeDir.exists()) {
             vscodeDir.mkdirs()
         }
-        def programParams = "--allow-op --assets=$hytaleHome/install/$patchline/package/game/latest/Assets.zip"
-        if (includes_pack.toBoolean()) {
-            programParams += " --mods=\${workspaceFolder}/src/main"
-        }
-        if (load_user_mods.toBoolean()) {
-            programParams += " --mods=$hytaleHome/UserData/Mods"
-        }
-        
+        def programParams = createServerRunArguments("\${workspaceFolder}")
         def launchConfig = [
             version: "0.2.0",
             configurations: [
