@@ -98,3 +98,36 @@ idea.project.settings.runConfigurations {
         workingDirectory = serverRunDir.absolutePath
     }
 }
+
+// Creates a launch.json file for VSCode with the same configuration
+tasks.register('generateVSCodeLaunch') {
+    def vscodeDir = file("$projectDir/.vscode")
+    def launchFile = file("$vscodeDir/launch.json")
+    doLast {
+        if (!vscodeDir.exists()) {
+            vscodeDir.mkdirs()
+        }
+        def programParams = "--allow-op --assets=$hytaleHome/install/$patchline/package/game/latest/Assets.zip"
+        if (includes_pack.toBoolean()) {
+            programParams += " --mods=\${workspaceFolder}/src/main"
+        }
+        if (load_user_mods.toBoolean()) {
+            programParams += " --mods=$hytaleHome/UserData/Mods"
+        }
+        
+        def launchConfig = [
+            version: "0.2.0",
+            configurations: [
+                [
+                    type: "java",
+                    name: "HytaleServer",
+                    request: "launch",
+                    mainClass: "com.hypixel.hytale.Main",
+                    args: programParams,
+                    cwd: "\${workspaceFolder}/run"
+                ]
+            ]
+        ]
+        launchFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(launchConfig))
+    }
+}
