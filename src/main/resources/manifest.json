@@ -1,15 +1,15 @@
 {
-    "Group": "Example",
-    "Name": "ExamplePlugin",
-    "Version": "0.0.2",
-    "Description": "An example plugin for HyTale!",
+    "Group": "${project_group}",
+    "Name": "${name}",
+    "Version": "0.0.1",
+    "Description": "${description}",
     "Authors": [
         {
-            "Name": "It's you!"
+            "Name": "${author}"
         }
     ],
-    "Website": "example.org",
-    "ServerVersion": "*",
+    "Website": "${website}",
+    "ServerVersion": "${server_version}",
     "Dependencies": {
         
     },
@@ -17,6 +17,10 @@
         
     },
     "DisabledByDefault": false,
-    "Main": "org.example.plugin.ExamplePlugin",
-    "IncludesAssetPack": true
+    "Hyxin": {
+        "Configs": [
+            "hyhardwarepatch.mixin.json"
+        ]
+    },
+    "IncludesAssetPack": false
 }
