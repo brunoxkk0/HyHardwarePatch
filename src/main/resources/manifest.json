@@ -17,10 +17,5 @@
         
     },
     "DisabledByDefault": false,
-    "Hyxin": {
-        "Configs": [
-            "hyhardwarepatch.mixin.json"
-        ]
-    },
     "IncludesAssetPack": false
 }
