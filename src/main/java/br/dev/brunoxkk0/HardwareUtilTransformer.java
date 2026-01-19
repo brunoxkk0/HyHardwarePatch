@@ -17,10 +17,13 @@ public class HardwareUtilTransformer implements ClassTransformer {
             @Nonnull byte[] bytes
     ) {
 
-        if (!name.equals("com.hypixel.hytale.common.util.HardwareUtil"))
+        if (!name.equals("com.hypixel.hytale.common.util.HardwareUtil")) {
             return bytes;
+        }
 
-        HytaleLogger.get("HyHardwarePatch").atInfo().log("Implementing custom Hardware UUID calculation method.");
+        HytaleLogger.get("HyHardwarePatch")
+                .atInfo()
+                .log("Replacing HardwareUtil.getUUID() with custom implementation (Java 25 compatible)");
 
         ClassReader reader = new ClassReader(bytes);
         ClassWriter writer = new ClassWriter(
@@ -39,13 +42,9 @@ public class HardwareUtilTransformer implements ClassTransformer {
                     String[] exceptions
             ) {
 
-                /*
-                 * Remove o método original getUUID()
-                 */
+                // Remove o método original
                 if (methodName.equals("getUUID")
                         && descriptor.equals("()Ljava/util/UUID;")) {
-
-                    // NÃO chama super.visitMethod → método removido
                     return null;
                 }
 
@@ -56,9 +55,7 @@ public class HardwareUtilTransformer implements ClassTransformer {
 
             @Override
             public void visitEnd() {
-                /*
-                 * Injeta o novo método getUUID()
-                 */
+
                 MethodVisitor mv = super.visitMethod(
                         Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                         "getUUID",
@@ -70,10 +67,8 @@ public class HardwareUtilTransformer implements ClassTransformer {
                 mv.visitCode();
 
                 /*
-                 * Corpo do método gerado via ASMifier
-                 * (equivalente 1:1 ao código Java do mixin)
+                 * File file = new File("SystemUUID.txt");
                  */
-
                 mv.visitTypeInsn(Opcodes.NEW, "java/io/File");
                 mv.visitInsn(Opcodes.DUP);
                 mv.visitLdcInsn("SystemUUID.txt");
@@ -114,7 +109,12 @@ public class HardwareUtilTransformer implements ClassTransformer {
                 mv.visitJumpInsn(Opcodes.IFNE, fileExists);
 
                 /*
-                 * UUID.randomUUID().toString() → write file
+                 * Files.writeString(
+                 *   file.toPath(),
+                 *   UUID.randomUUID().toString(),
+                 *   UTF_8,
+                 *   CREATE, TRUNCATE_EXISTING
+                 * );
                  */
                 mv.visitVarInsn(Opcodes.ALOAD, 0);
                 mv.visitMethodInsn(
@@ -124,22 +124,7 @@ public class HardwareUtilTransformer implements ClassTransformer {
                         "()Ljava/nio/file/Path;",
                         false
                 );
-                mv.visitFieldInsn(
-                        Opcodes.GETSTATIC,
-                        "java/nio/charset/StandardCharsets",
-                        "UTF_8",
-                        "Ljava/nio/charset/Charset;"
-                );
-                mv.visitMethodInsn(
-                        Opcodes.INVOKESTATIC,
-                        "java/nio/file/Files",
-                        "newBufferedWriter",
-                        "(Ljava/nio/file/Path;Ljava/nio/charset/Charset;)Ljava/io/BufferedWriter;",
-                        false
-                );
-                mv.visitVarInsn(Opcodes.ASTORE, 1);
 
-                mv.visitVarInsn(Opcodes.ALOAD, 1);
                 mv.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         "java/util/UUID",
@@ -154,26 +139,50 @@ public class HardwareUtilTransformer implements ClassTransformer {
                         "()Ljava/lang/String;",
                         false
                 );
+
+                mv.visitFieldInsn(
+                        Opcodes.GETSTATIC,
+                        "java/nio/charset/StandardCharsets",
+                        "UTF_8",
+                        "Ljava/nio/charset/Charset;"
+                );
+
+                mv.visitInsn(Opcodes.ICONST_2);
+                mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/nio/file/OpenOption");
+
+                mv.visitInsn(Opcodes.DUP);
+                mv.visitInsn(Opcodes.ICONST_0);
+                mv.visitFieldInsn(
+                        Opcodes.GETSTATIC,
+                        "java/nio/file/StandardOpenOption",
+                        "CREATE",
+                        "Ljava/nio/file/StandardOpenOption;"
+                );
+                mv.visitInsn(Opcodes.AASTORE);
+
+                mv.visitInsn(Opcodes.DUP);
+                mv.visitInsn(Opcodes.ICONST_1);
+                mv.visitFieldInsn(
+                        Opcodes.GETSTATIC,
+                        "java/nio/file/StandardOpenOption",
+                        "TRUNCATE_EXISTING",
+                        "Ljava/nio/file/StandardOpenOption;"
+                );
+                mv.visitInsn(Opcodes.AASTORE);
+
                 mv.visitMethodInsn(
-                        Opcodes.INVOKEVIRTUAL,
-                        "java/io/BufferedWriter",
-                        "write",
-                        "(Ljava/lang/String;)V",
+                        Opcodes.INVOKESTATIC,
+                        "java/nio/file/Files",
+                        "writeString",
+                        "(Ljava/nio/file/Path;Ljava/lang/CharSequence;Ljava/nio/charset/Charset;[Ljava/nio/file/OpenOption;)Ljava/nio/file/Path;",
                         false
                 );
-                mv.visitVarInsn(Opcodes.ALOAD, 1);
-                mv.visitMethodInsn(
-                        Opcodes.INVOKEVIRTUAL,
-                        "java/io/BufferedWriter",
-                        "close",
-                        "()V",
-                        false
-                );
+                mv.visitInsn(Opcodes.POP);
 
                 mv.visitLabel(fileExists);
 
                 /*
-                 * Read UUID and return
+                 * String uuid = Files.readString(path, UTF_8).trim();
                  */
                 mv.visitVarInsn(Opcodes.ALOAD, 0);
                 mv.visitMethodInsn(
@@ -183,41 +192,30 @@ public class HardwareUtilTransformer implements ClassTransformer {
                         "()Ljava/nio/file/Path;",
                         false
                 );
+
                 mv.visitFieldInsn(
                         Opcodes.GETSTATIC,
                         "java/nio/charset/StandardCharsets",
                         "UTF_8",
                         "Ljava/nio/charset/Charset;"
                 );
+
                 mv.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         "java/nio/file/Files",
-                        "newBufferedReader",
-                        "(Ljava/nio/file/Path;Ljava/nio/charset/Charset;)Ljava/io/BufferedReader;",
+                        "readString",
+                        "(Ljava/nio/file/Path;Ljava/nio/charset/Charset;)Ljava/lang/String;",
                         false
                 );
-                mv.visitVarInsn(Opcodes.ASTORE, 2);
 
-                mv.visitVarInsn(Opcodes.ALOAD, 2);
                 mv.visitMethodInsn(
                         Opcodes.INVOKEVIRTUAL,
-                        "java/io/BufferedReader",
-                        "readLine",
+                        "java/lang/String",
+                        "trim",
                         "()Ljava/lang/String;",
                         false
                 );
-                mv.visitVarInsn(Opcodes.ASTORE, 3);
 
-                mv.visitVarInsn(Opcodes.ALOAD, 2);
-                mv.visitMethodInsn(
-                        Opcodes.INVOKEVIRTUAL,
-                        "java/io/BufferedReader",
-                        "close",
-                        "()V",
-                        false
-                );
-
-                mv.visitVarInsn(Opcodes.ALOAD, 3);
                 mv.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         "java/util/UUID",
@@ -225,16 +223,20 @@ public class HardwareUtilTransformer implements ClassTransformer {
                         "(Ljava/lang/String;)Ljava/util/UUID;",
                         false
                 );
+
                 mv.visitInsn(Opcodes.ARETURN);
 
                 mv.visitLabel(tryEnd);
 
+                /*
+                 * catch (Exception e)
+                 */
                 mv.visitLabel(catchBlock);
-                mv.visitVarInsn(Opcodes.ASTORE, 4);
+                mv.visitVarInsn(Opcodes.ASTORE, 1);
                 mv.visitTypeInsn(Opcodes.NEW, "java/lang/RuntimeException");
                 mv.visitInsn(Opcodes.DUP);
                 mv.visitLdcInsn("Failed to load system UUID");
-                mv.visitVarInsn(Opcodes.ALOAD, 4);
+                mv.visitVarInsn(Opcodes.ALOAD, 1);
                 mv.visitMethodInsn(
                         Opcodes.INVOKESPECIAL,
                         "java/lang/RuntimeException",
