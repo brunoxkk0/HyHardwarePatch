@@ -42,7 +42,6 @@ public class HardwareUtilTransformer implements ClassTransformer {
                     String[] exceptions
             ) {
 
-                // Remove o método original
                 if (methodName.equals("getUUID")
                         && descriptor.equals("()Ljava/util/UUID;")) {
                     return null;
@@ -66,9 +65,6 @@ public class HardwareUtilTransformer implements ClassTransformer {
 
                 mv.visitCode();
 
-                /*
-                 * File file = new File("SystemUUID.txt");
-                 */
                 mv.visitTypeInsn(Opcodes.NEW, "java/io/File");
                 mv.visitInsn(Opcodes.DUP);
                 mv.visitLdcInsn("SystemUUID.txt");
@@ -79,6 +75,7 @@ public class HardwareUtilTransformer implements ClassTransformer {
                         "(Ljava/lang/String;)V",
                         false
                 );
+
                 mv.visitVarInsn(Opcodes.ASTORE, 0);
 
                 Label tryStart = new Label();
@@ -94,9 +91,6 @@ public class HardwareUtilTransformer implements ClassTransformer {
 
                 mv.visitLabel(tryStart);
 
-                /*
-                 * if (!file.exists())
-                 */
                 mv.visitVarInsn(Opcodes.ALOAD, 0);
                 mv.visitMethodInsn(
                         Opcodes.INVOKEVIRTUAL,
@@ -108,14 +102,6 @@ public class HardwareUtilTransformer implements ClassTransformer {
                 Label fileExists = new Label();
                 mv.visitJumpInsn(Opcodes.IFNE, fileExists);
 
-                /*
-                 * Files.writeString(
-                 *   file.toPath(),
-                 *   UUID.randomUUID().toString(),
-                 *   UTF_8,
-                 *   CREATE, TRUNCATE_EXISTING
-                 * );
-                 */
                 mv.visitVarInsn(Opcodes.ALOAD, 0);
                 mv.visitMethodInsn(
                         Opcodes.INVOKEVIRTUAL,
@@ -132,6 +118,7 @@ public class HardwareUtilTransformer implements ClassTransformer {
                         "()Ljava/util/UUID;",
                         false
                 );
+
                 mv.visitMethodInsn(
                         Opcodes.INVOKEVIRTUAL,
                         "java/util/UUID",
@@ -181,9 +168,6 @@ public class HardwareUtilTransformer implements ClassTransformer {
 
                 mv.visitLabel(fileExists);
 
-                /*
-                 * String uuid = Files.readString(path, UTF_8).trim();
-                 */
                 mv.visitVarInsn(Opcodes.ALOAD, 0);
                 mv.visitMethodInsn(
                         Opcodes.INVOKEVIRTUAL,
@@ -228,9 +212,6 @@ public class HardwareUtilTransformer implements ClassTransformer {
 
                 mv.visitLabel(tryEnd);
 
-                /*
-                 * catch (Exception e)
-                 */
                 mv.visitLabel(catchBlock);
                 mv.visitVarInsn(Opcodes.ASTORE, 1);
                 mv.visitTypeInsn(Opcodes.NEW, "java/lang/RuntimeException");
@@ -244,21 +225,27 @@ public class HardwareUtilTransformer implements ClassTransformer {
                         "(Ljava/lang/String;Ljava/lang/Throwable;)V",
                         false
                 );
+
                 mv.visitInsn(Opcodes.ATHROW);
 
                 mv.visitMaxs(0, 0);
                 mv.visitEnd();
 
                 super.visitEnd();
+
             }
+
         };
 
         reader.accept(visitor, 0);
+
         return writer.toByteArray();
+
     }
 
     @Override
     public int priority() {
         return -99;
     }
+
 }
